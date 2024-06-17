@@ -1,0 +1,102 @@
+import "dotenv/config";
+import { Request, Response, NextFunction } from "express";
+import usersService from "../services/users";
+import Users from '../models/users';
+
+const userController = {}
+
+type Data = {
+  name: string;
+  age: number;
+  url: string;
+};
+
+const sendData: Data = {
+  name: "test",
+  age: 3,
+  url: "tistory.com",
+};
+
+export class users {
+  public usersService = new usersService();
+
+    //회원가입
+    public signUp = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const {userId, nickName, email, password, confirm}
+                : {userId: string, nickName: string, email: string, password: string, confirm: string}
+                = req.body;
+
+            await this.usersService.signUp({userId, nickName, email, password, confirm});
+
+            res.status(201).json({ok: true, statusCode: 201, message: "회원가입 성공!!"});
+        } catch (err: any) {
+            res.status(err.status  || 400).json({ok: 0, statusCode: err.status, err: err.message})
+        };
+    };
+
+    //유저 id 중복 검사
+   public findDupId = async (req: Request, res: Response, next: NextFunction) => {
+       const {userId}: {userId: string} = req.body;
+       try {
+           const findDupIdData = await this.usersService.findDupId(userId);
+           res.status(201).json({findDupIdData});
+       } catch (err: any) {
+           res.status(400).json({message: err.message, statusCode: err.status});
+       };
+   };
+    
+    //유저 nickname 중복 검사
+    public findDupNick = async (req: Request, res: Response, next: NextFunction) => {
+        const {nickName}: {nickName: string} = req.body;
+        try {
+            const findDupNickData = await this.usersService.findDupNick(nickName);
+            res.status(201).json({findDupNickData});
+        } catch (err: any) {
+            res.status(400).json({message: err.message, statusCode: err.status});
+        };
+    };
+
+    //로그인
+    public login = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const {userId, password}: {userId: string, password: string}= req.body;
+            
+            //유효성 검사
+            const login = await this.usersService.login(userId, password);
+            
+            if (login === null) {
+                return res.status(404).send({ok: 0, statusCode: 404, errorMessage: "가입 정보를 찾을 수 없습니다."});
+            };
+            
+            //const getNickName = await this.usersService.getNickName(userId);
+            const accessToken  = await this.usersService.getAccessToken(userId);
+            const refreshToken = await this.usersService.getRefreshToken();
+
+            //refreshToken DB에 업뎃
+            //await this.usersService.updateRefreshToken(userId, refreshToken);
+
+            res.status(201).json({
+                accessToken: `Bearer ${accessToken}}`,
+                refresh_token: `Bearer ${refreshToken}`,
+                //nickName: {getNickName}
+            });
+        } catch (err: any) {
+            res.status(err.status || 400).json({
+                ok: 0,  
+                statusCode: err.status, 
+                message: err.message || "로그인 실패.."});
+        };
+    };
+
+    public information = async(req: Request, res: Response, next: NextFunction)=>{
+        try{
+            const taskList = await Users.find({});
+            res.status(200).json({status:'ok', data:taskList});
+        }catch(err: any){
+            res.status(400).json({status:'fail', error:err});
+        }
+    }
+}
+
+export default users;
